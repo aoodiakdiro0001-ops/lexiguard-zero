@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Unit + integration tests
+        run: python -m unittest discover -s tests -v
+      - name: E2E gate — risky sample must trip HIGH
+        run: |
+          set +e
+          python -m lexiguard scan examples/sample-risky-en.txt --fail-on high
+          code=$?
+          set -e
+          test "$code" -eq 2
+      - name: E2E gate — Arabic risky sample must trip HIGH
+        run: |
+          set +e
+          python -m lexiguard scan examples/sample-risky-ar.txt --fail-on high
+          code=$?
+          set -e
+          test "$code" -eq 2
+      - name: E2E gate — fair sample stays below HIGH
+        run: python -m lexiguard scan examples/sample-fair-en.txt --fail-on high
+      - name: Reports render in all formats
+        run: |
+          python -m lexiguard report examples/sample-risky-ar.txt -f markdown -o /tmp/r.md
+          python -m lexiguard report examples/sample-risky-ar.txt -f html -o /tmp/r.html
+          python -m lexiguard report examples/sample-risky-ar.txt -f json -o /tmp/r.json
+          grep -q "Not legal advice" /tmp/r.md
+          grep -q "ليست استشارة قانونية" /tmp/r.md
+          grep -q "disclaimer_en" /tmp/r.json
+      - name: Doctor sanity
+        run: python -m lexiguard doctor
+
+  test-with-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install optional PDF backend
+        run: pip install PyMuPDF
+      - name: Full suite with PDF support present
+        run: python -m unittest discover -s tests -v

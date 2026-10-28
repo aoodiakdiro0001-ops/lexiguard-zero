@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lexiguard-zero"
+version = "1.0.0"
+description = "Local-first bilingual (AR/EN) contract red-flag reviewer — not legal advice"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Baran Avisat", email = "baranavisat@gmail.com" }]
+keywords = ["contract", "ndas", "risk", "arabic", "legal-tech", "offline"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Office/Business",
+]
+# Zero required dependencies by design (contracts stay local).
+dependencies = []
+
+[project.optional-dependencies]
+pdf = ["PyMuPDF>=1.23"]
+
+[project.scripts]
+lexiguard = "lexiguard.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/aoodiakdiro0001-ops/lexiguard-zero"
+Support = "mailto:baranavisat@gmail.com"
+
+[tool.setuptools]
+packages = ["lexiguard"]

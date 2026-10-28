@@ -1,0 +1,35 @@
+MUTUAL SERVICES AGREEMENT — SAMPLE (balanced text, low-signal demo)
+
+1. SCOPE AND MILESTONES
+Provider shall deliver the services in Schedule 1 in three milestones,
+each with written acceptance criteria.
+
+2. PAYMENT
+Fees are split 30% on signing, 40% on mid-delivery and 30% on acceptance.
+Invoices are due within Net 15 days.
+
+3. INTELLECTUAL PROPERTY
+Each party keeps its pre-existing intellectual property. Upon receipt of
+full payment, Provider assigns the final deliverables' intellectual
+property rights to Client, excluding Provider's pre-existing tools and
+libraries.
+
+4. REVISIONS
+Provider includes three rounds of revisions per deliverable; further
+revisions are billed at the hourly rate and scoped in writing.
+
+5. TERM AND TERMINATION
+Either party may terminate with 15 days' written notice; upon
+termination Client pays for all work performed to that date.
+
+6. LIABILITY
+Each party's total liability is capped at the fees paid in the 12 months
+preceding the claim. Neither party is liable for indirect damages.
+
+7. CONFIDENTIALITY
+Obligations last three years from disclosure and exclude information
+already public or independently developed.
+
+8. GOVERNING LAW
+This agreement is governed by the laws of the country where Provider is
+established, with courts of that country having jurisdiction.
