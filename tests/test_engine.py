@@ -138,6 +138,16 @@ class BandHonestyTests(unittest.TestCase):
         self.assertNotIn("LG-SETTLE-DISTANT-FORUM", ids)
         self.assertEqual(res.band, "none")
 
+    def test_clause_count_capped(self):
+        # Security review #4: a hostile document with tens of thousands
+        # of headers must be capped, with a visible warning.
+        lines = ["%d. Clause body %d with enough characters here."
+                 % (i % 99 + 1, i) for i in range(engine.MAX_CLAUSES + 100)]
+        doc = extract.extract_text("\n".join(lines))
+        res = engine.scan(doc, config.default())
+        self.assertLessEqual(len(res.clauses), engine.MAX_CLAUSES)
+        self.assertTrue(any("capped" in w for w in doc.warnings))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -46,6 +46,24 @@ class RedosGuardTests(unittest.TestCase):
                     pat.search(s)
         self.assertLess(time.time() - start, 5.0)
 
+    def test_moral_rights_pattern_linear_on_space_run(self):
+        # Pinned regression (security review #1): the old
+        # `moral\s+rights?\s+(are\s+)?\w*\s*waiv` was quadratic —
+        # 80k spaces took ~32 s. The replacement must stay linear.
+        rule = rules.get_rule("LG-MORAL-RIGHTS")
+        start = time.time()
+        rule._compiled[0].search("moral rights" + " " * 100000)
+        self.assertLess(time.time() - start, 1.0)
+
+    def test_moral_rights_pattern_still_matches(self):
+        rule = rules.get_rule("LG-MORAL-RIGHTS")
+        for text in ("All moral rights are waived by Artist.",
+                     "Moral rights waived.",
+                     "artist waives all moral rights."):
+            self.assertTrue(
+                any(p.search(text) for p in rule._compiled),
+                "missed: %r" % text)
+
 
 class SelectionTests(unittest.TestCase):
     def test_ignore(self):

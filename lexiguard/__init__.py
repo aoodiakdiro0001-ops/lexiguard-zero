@@ -20,7 +20,7 @@ Bright lines (enforced in code, pinned by tests — see SECURITY.md):
 MIT (c) 2026 Baran Avisat — Aodı Akdıro Suite
 Support: baranavisat@gmail.com · WhatsApp +90 531 326 37 22
 """
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 DISCLAIMER_EN = (
     "Not legal advice. Lexi-Guard Zero is a heuristic first-pass review of "

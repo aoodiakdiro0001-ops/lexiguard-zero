@@ -45,9 +45,9 @@ class NotifyResult(object):
         return {"status": self.status, "detail": self.detail}
 
 
-def build_summary(result, doc_label="document"):
-    """Compliant payload: counts + rule ids only. `doc_label` defaults to
-    a generic word and callers must not pass a path — see send()."""
+def build_summary(result):
+    """Compliant payload: counts + rule ids only. By design there is no
+    document label of any kind here — not a name, not a path."""
     counts = result.counts()
     ids = sorted(set(f.rule.id for f in result.findings))
     return {
@@ -57,19 +57,19 @@ def build_summary(result, doc_label="document"):
         "counts": counts,
         "rule_ids": ids[:40],
         "disclaimer": "automated pattern signals — not legal advice",
-        "document": doc_label,
     }
 
 
-def send(result, chat_id=None, token=None, doc_label="document"):
+def send(result, chat_id=None, token=None):
     """Push a summary to your own Telegram chat. Opt-in: requires
-    TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (or explicit args)."""
+    TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (or explicit args). Never
+    raises: any failure becomes an error result (fail-closed)."""
     token = token or os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = chat_id or os.environ.get("TELEGRAM_CHAT_ID")
     if not token or not chat_id:
         return NotifyResult("skipped", "no TELEGRAM_BOT_TOKEN/"
                             "TELEGRAM_CHAT_ID configured")
-    summary = build_summary(result, doc_label)
+    summary = build_summary(result)
     payload = json.dumps(summary, ensure_ascii=False)
     if len(payload) > MAX_CHARS:
         payload = json.dumps({"tool": "lexiguard-zero",
@@ -90,5 +90,5 @@ def send(result, chat_id=None, token=None, doc_label="document"):
         with opener.open(req, timeout=TIMEOUT) as resp:
             resp.read(MAX_CHARS)
         return NotifyResult("sent")
-    except (HTTPError, URLError, OSError, ValueError) as e:
+    except Exception as e:              # incl. http.client.HTTPException
         return NotifyResult("error", str(e)[:200])

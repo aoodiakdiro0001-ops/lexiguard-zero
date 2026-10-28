@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lexiguard-zero"
-version = "1.0.0"
+version = "1.0.1"
 description = "Local-first bilingual (AR/EN) contract red-flag reviewer — not legal advice"
 readme = "README.md"
 requires-python = ">=3.8"

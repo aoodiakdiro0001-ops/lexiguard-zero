@@ -74,18 +74,30 @@ class RemedyTests(unittest.TestCase):
         self.assertEqual(rem.text_en, f.rule.fix_en)
 
     def test_ai_off_by_default_no_network(self):
-        # urlopen must never be reached: patch it to prove it.
+        # build_opener must never be reached: patch it to prove it.
         calls = []
-        orig = remedy.urlopen
-        remedy.urlopen = lambda *a, **k: calls.append(a) or \
-            (_ for _ in ()).throw(AssertionError("network touched"))
+        orig = remedy.build_opener
+
+        def _boom(*a, **k):
+            calls.append(a)
+            raise AssertionError("network touched")
+
+        remedy.build_opener = _boom
         try:
             rems = remedy.remedies_for(self.result, use_ai=False)
         finally:
-            remedy.urlopen = orig
-        self.assertEqual(len(rems), len(self.result.findings))
+            remedy.build_opener = orig
         self.assertEqual(calls, [])
         self.assertTrue(all(r.source == "offline" for r in rems))
+
+    def test_remedies_dedupe_per_rule(self):
+        # One remedy per distinct rule, not per finding (bounds API
+        # spend and keeps reports linear).
+        rems = remedy.remedies_for(self.result)
+        rule_ids = [r.rule_id for r in rems]
+        self.assertEqual(len(rule_ids), len(set(rule_ids)))
+        distinct = set(f.rule.id for f in self.result.findings)
+        self.assertEqual(len(rems), len(distinct))
 
     def test_ai_without_key_falls_back(self):
         rems = remedy.remedies_for(self.result, use_ai=True, api_key=None)
@@ -177,6 +189,32 @@ class ConfigTests(unittest.TestCase):
                 config.load(path)
         finally:
             os.unlink(path)
+
+    def test_unknown_rule_id_raises(self):
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix=".json")
+        with os.fdopen(fd, "w") as fh:
+            json.dump({"ignore_rules": ["LG-TYPO"]}, fh)
+        try:
+            with self.assertRaises(ValueError):
+                config.load(path)
+        finally:
+            os.unlink(path)
+
+    def test_non_list_ignore_raises(self):
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix=".json")
+        with os.fdopen(fd, "w") as fh:
+            json.dump({"ignore_rules": 5}, fh)
+        try:
+            with self.assertRaises(ValueError):
+                config.load(path)
+        finally:
+            os.unlink(path)
+
+    def test_missing_explicit_path_raises(self):
+        with self.assertRaises(ValueError):
+            config.load("/nonexistent/lexiguard.json")
 
 
 if __name__ == "__main__":

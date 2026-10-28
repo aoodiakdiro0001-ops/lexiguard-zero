@@ -73,19 +73,26 @@ def _print_summary(result, remedies=None):
 
 
 def cmd_scan(args):
-    result, _cfg = _scan_file(args.file, args)
+    result, cfg = _scan_file(args.file, args)
+    if cfg.path:
+        print("config: %s (ignored %d rule(s), min_severity=%s, side=%s)"
+              % (cfg.path, len(cfg.ignore_rules), cfg.min_severity,
+                 cfg.side or "both"), file=sys.stderr)
     use_ai = args.ai == "gemini"
-    if use_ai and not (args.deal_hint or os.environ.get("GEMINI_API_KEY")):
-        print("note: --ai gemini needs GEMINI_API_KEY; using offline "
-              "templates", file=sys.stderr)
+    if use_ai and not os.environ.get("GEMINI_API_KEY"):
+        print("note: --ai gemini needs GEMINI_API_KEY in the environment; "
+              "using offline templates", file=sys.stderr)
         use_ai = False
     rems = None
     if use_ai or getattr(args, "remedies", False):
         rems = remedy.remedies_for(result, use_ai=use_ai,
                                    deal_hint=getattr(args, "deal_hint", ""))
+        if use_ai and any(r.source == "offline" for r in rems):
+            print("note: AI unavailable for some suggestions — offline "
+                  "templates used instead", file=sys.stderr)
     _print_summary(result, rems)
     if args.notify:
-        n = notify.send(result, doc_label="document")
+        n = notify.send(result)
         print("notify: %s %s" % (n.status, n.detail))
     if args.fail_on:
         from .rules import SEVERITY_RANK
@@ -97,12 +104,26 @@ def cmd_scan(args):
 
 
 def cmd_report(args):
-    result, _cfg = _scan_file(args.file, args)
+    result, cfg = _scan_file(args.file, args)
+    if cfg.path:
+        print("config: %s (ignored %d rule(s), min_severity=%s, side=%s)"
+              % (cfg.path, len(cfg.ignore_rules), cfg.min_severity,
+                 cfg.side or "both"), file=sys.stderr)
     use_ai = args.ai == "gemini"
+    if use_ai and not os.environ.get("GEMINI_API_KEY"):
+        print("note: --ai gemini needs GEMINI_API_KEY in the environment; "
+              "using offline templates", file=sys.stderr)
+        use_ai = False
     rems = remedy.remedies_for(result, use_ai=use_ai,
                                deal_hint=getattr(args, "deal_hint", ""))
+    if use_ai and any(r.source == "offline" for r in rems):
+        print("note: AI unavailable for some suggestions — offline "
+              "templates used instead", file=sys.stderr)
     text = report.render(result, args.format, rems)
     if args.output:
+        if os.path.exists(args.output):
+            print("note: overwriting existing file %s" % args.output,
+                  file=sys.stderr)
         with open(args.output, "w", encoding="utf-8") as fh:
             fh.write(text)
         print("wrote %s (%d bytes) — band %s, %d findings" % (

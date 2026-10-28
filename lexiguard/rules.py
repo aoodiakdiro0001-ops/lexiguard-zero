@@ -7,8 +7,9 @@ a plain-language explanation, and a FAIR COUNTER-CLAUSE template in both
 languages for the human to adapt.
 
 Arabic patterns are written in FOLDED orthography (no tashkeel; ا/ي/ه
-unified) because matching goes through clauses.match_any(): raw text
-first, Arabic-folded text second.
+unified) because matching goes through clauses.find_span(): raw text
+first, Arabic-folded text second (with the match span mapped back to the
+original wording).
 
 Bright lines:
   * detection only — never presented as a lawyer's opinion (every report
@@ -310,7 +311,8 @@ RULES = [
     _r("LG-MORAL-RIGHTS", "medium", "ip", "provider",
        "Blanket waiver of moral rights",
        "تنازل شامل عن الحقوق المعنوية",
-       [r"moral\s+rights?\s+(are\s+)?\w*\s*waiv", r"waive\w*\s+.{0,25}moral",
+       [r"moral\s+rights?(?:\s+are)?(?:\s+\w+){0,3}\s*waiv",
+        r"waive\w*\s+.{0,25}moral",
         r"التخلي\s+عن\s+الحقوق\s+المعنويه|الحقوق\s+المعنويه"],
        "A blanket moral-rights waiver can strip attribution and integrity "
        "rights over your creative work — often broader than needed.",

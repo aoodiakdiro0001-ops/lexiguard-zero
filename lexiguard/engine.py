@@ -29,6 +29,7 @@ BANDS = [
 ]
 
 _SNIPPET = 170
+MAX_CLAUSES = 20000            # hostile-document guard (finding cap ~ rules x clauses)
 
 
 class Finding(object):
@@ -74,15 +75,17 @@ def _clause_text(clause):
     return clause.text
 
 
-def _clause_hits(clause, rule):
+def _clause_hits(clause, rule, cache=None):
     """Return (pattern_index, raw_start, raw_end) of the first hit or
     None. mode any: first pattern that matches wins.
-    mode all: every pattern must match somewhere in the clause."""
+    mode all: every pattern must match somewhere in the clause.
+    `cache` memoizes the Arabic fold across patterns (one fold per
+    clause, not one per pattern)."""
     hay_full = _clause_text(clause)
     matched_on = None
     first = None
     for idx, pat in enumerate(rule._compiled):
-        span = _clauses.find_span(pat, hay_full)
+        span = _clauses.find_span(pat, hay_full, cache)
         if span:
             if first is None:
                 first = (idx, span[0], span[1], span[2])
@@ -105,11 +108,19 @@ def scan(document, cfg=None):
                                    side=side)
 
     clause_objs = _clauses.split_clauses(document.text)
+    if len(clause_objs) > MAX_CLAUSES:
+        try:
+            document.warnings.append(
+                "clause count capped at %d" % MAX_CLAUSES)
+        except Exception:
+            pass
+        clause_objs = clause_objs[:MAX_CLAUSES]
     findings = []
     seen = set()                       # (rule_id, clause_line) dedupe
     for clause in clause_objs:
+        fold_cache = {}                # one Arabic fold per clause
         for rule in selected:
-            hit = _clause_hits(clause, rule)
+            hit = _clause_hits(clause, rule, fold_cache)
             if hit is None:
                 continue
             key = (rule.id, clause.start_line)

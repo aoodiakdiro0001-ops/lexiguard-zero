@@ -77,3 +77,32 @@ release with the bright lines re-pinned by the test suite.
 **Not legal advice** — Lexi-Guard Zero is a heuristic first-pass signal
 generator for clause patterns; a licensed attorney reviews real agreements.
 Support: baranavisat@gmail.com · WhatsApp +90 531 326 37 22
+
+## v1.0.1 hardening (independent security review, 2026-10-28)
+
+An adversarial review of v1.0.0 verified all privacy/injection commitments
+(no exfiltration path, no XSS, no secret leak, no "safe" language) and
+found availability/robustness defects, all remediated in v1.0.1:
+
+- **HIGH · quadratic ReDoS** in the `LG-MORAL-RIGHTS` pattern (80k-space
+  run ≈ 32 s) — replaced with a linear pattern; pinned regression test
+  (< 1 s on a 100k-space run).
+- **HIGH · N² remedy rendering** — remedies are now deduplicated per rule
+  (one counter-clause per rule, not per finding), which also bounds the
+  opt-in AI path to ≤ 25 API calls per scan.
+- **MEDIUM · quadratic HTML fallback** on malformed documents — now a
+  linear tag-strip that replaces (never duplicates) partial output.
+- **MEDIUM · repeated Arabic folding per pattern** — folded once per
+  clause (memoized), plus a 20,000-clause cap with a visible warning.
+- **MEDIUM · review-integrity transparency** — an applied `.lexiguard.json`
+  is now announced on stderr (path, ignored-rule count, severity floor,
+  side) in `scan` and `report`.
+- **LOW** — explicit `--config` path that does not exist is an error, not
+  silent defaults; config size capped at 1 MiB; `ignore_rules` type-checked
+  and unknown rule ids rejected; notify never raises (incl.
+  `http.client.HTTPException`); the Telegram payload carries no document
+  label of any kind; PDF reads honor the 5 MiB cap (`BytesIO`), extracted
+  text capped at 5 MiB (decompression bombs); non-regular files rejected;
+  `-o` overwrite warned; the AI gate keys on `GEMINI_API_KEY` alone and
+  announces offline fallback; the Gemini API key travels in a header (never
+  the URL) with redirects refused and a capped response read.

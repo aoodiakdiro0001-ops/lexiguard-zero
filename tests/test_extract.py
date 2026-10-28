@@ -64,6 +64,12 @@ class ExtractTextTests(unittest.TestCase):
         finally:
             os.unlink(p)
 
+    def test_non_regular_file_rejected(self):
+        # /dev/zero is a character device with st_size 0 — must be
+        # rejected, never read unbounded (security review #10).
+        with self.assertRaises(extract.ExtractError):
+            extract.extract("/dev/zero")
+
 
 class ExtractHtmlTests(unittest.TestCase):
     def test_script_stripped_not_executed(self):
@@ -82,6 +88,12 @@ class ExtractHtmlTests(unittest.TestCase):
     def test_entities_and_blocks(self):
         self.assertIn("A", extract.strip_html("&lt;A&gt;"))
         self.assertIn("\n", extract.strip_html("<p>a</p><p>b</p>"))
+
+    def test_malformed_html_fallback_no_duplication(self):
+        # Security review #3: the fallback must REPLACE partial output,
+        # never append a second copy of the document.
+        out = extract.strip_html("Visible text<!--" + "-" * 8)
+        self.assertEqual(out.count("Visible text"), 1)
 
 
 class ExtractRtfTests(unittest.TestCase):

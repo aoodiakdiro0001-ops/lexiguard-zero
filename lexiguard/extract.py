@@ -22,6 +22,7 @@ import os
 import re
 
 MAX_BYTES = 5 * 1024 * 1024          # 5 MiB per document
+MAX_TEXT = 5 * 1024 * 1024           # cap on extracted text (PDF bombs)
 TEXT_EXTS = {".txt", ".md", ".markdown", ".csv", ".json", ".rtf", ".text",
              ".html", ".htm"}
 PDF_EXTS = {".pdf"}
@@ -56,16 +57,24 @@ class Document(object):
 
 
 def _read_capped(path):
-    """Read at most MAX_BYTES; return (bytes, truncated)."""
+    """Read at most MAX_BYTES from a REGULAR file; return (bytes,
+    truncated). Non-regular files (devices, FIFOs) are rejected and the
+    read itself is always bounded (no TOCTOU window on size)."""
+    import stat
     try:
-        size = os.path.getsize(path)
+        st = os.stat(path)
     except OSError as e:
         raise ExtractError("cannot read %s: %s" % (path, e))
-    if size > MAX_BYTES:
+    if not stat.S_ISREG(st.st_mode):
+        raise ExtractError("not a regular file: %s" % path)
+    try:
         with open(path, "rb") as fh:
-            return fh.read(MAX_BYTES), True
-    with open(path, "rb") as fh:
-        return fh.read(), False
+            raw = fh.read(MAX_BYTES + 1)
+    except OSError as e:
+        raise ExtractError("cannot read %s: %s" % (path, e))
+    if len(raw) > MAX_BYTES:
+        return raw[:MAX_BYTES], True
+    return raw, False
 
 
 def _decode(raw):
@@ -114,7 +123,11 @@ class _HTMLText(object):
             self._p.feed(text)
             self._p.close()
         except Exception:
-            self._parts.append(re.sub(r"<[^>]+>", " ", text))
+            # Fallback for malformed HTML: strip tags with a LINEAR
+            # pattern (char class excludes '<', so no quadratic scan),
+            # and REPLACE prior partial output — never append a second
+            # copy of the whole document.
+            self._parts = [re.sub(r"<[^<>]+>", " ", text)]
         return self
 
 
@@ -190,7 +203,8 @@ def _extract_pdf(path, raw):
         text = "\n".join(parts)
     else:                                            # pdfplumber
         try:
-            with mod.open(path) as pdf:
+            # Read from the already-capped bytes, not from disk again.
+            with mod.open(io.BytesIO(raw)) as pdf:
                 pages = len(pdf.pages)
                 if pages > 200:
                     warnings.append("PDF capped at 200 pages")
@@ -198,6 +212,10 @@ def _extract_pdf(path, raw):
                                  for p in pdf.pages[:200])
         except Exception as e:
             raise ExtractError("pdfplumber failed: %s" % e)
+    if len(text) > MAX_TEXT:
+        # Decompression-bomb guard: a small PDF can expand hugely.
+        warnings.append("extracted text capped at 5 MiB")
+        text = text[:MAX_TEXT]
     if len(text.strip()) < 40:
         raise ExtractError(
             "no extractable text in this PDF — it looks like a SCANNED/"

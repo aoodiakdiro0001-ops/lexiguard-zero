@@ -83,17 +83,16 @@ any error is returned as a status — it never breaks the scan.
   "score": 23,
   "counts": {"high": 4, "medium": 3, "low": 1, "info": 0},
   "rule_ids": ["LG-AUTORENEW", "LG-IP-PREPAY", "..."],
-  "disclaimer": "automated pattern signals — not legal advice",
-  "document": "document"
+  "disclaimer": "automated pattern signals — not legal advice"
 }
 ```
 
 - `rule_ids` = the sorted, de-duplicated **rule identifiers only** (capped at
   40; if the message exceeds 1,500 chars a reduced payload keeps just the
   first 10 ids plus band/score/counts/disclaimer).
-- `document` is the literal generic word **`"document"`** — the CLI never
-  passes your file name or path (`build_summary`'s contract: callers must not
-  pass a path).
+- There is **no document label of any kind** in the payload — no file name,
+  no path, not even a generic word. `build_summary()` has no parameter that
+  could carry one.
 - The message is prefixed with `Lexi-Guard Zero summary` and sent with web
   previews disabled.
 

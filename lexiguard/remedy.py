@@ -19,15 +19,18 @@ import json
 import os
 
 try:                                    # stdlib only
-    from urllib.request import Request, urlopen
+    from urllib.request import Request, build_opener
     from urllib.error import URLError, HTTPError
 except ImportError:                     # pragma: no cover
     raise
 
+from .notify import _NoRedirect         # single no-redirect implementation
+
 GEMINI_ENDPOINT = ("https://generativelanguage.googleapis.com/v1beta/"
-                   "models/gemini-2.0-flash:generateContent?key=%s")
+                   "models/gemini-2.0-flash:generateContent")
 TIMEOUT = 20
 MAX_TEMPLATE_CHARS = 1200               # hard cap on what may be sent
+MAX_AI_REMEDIES = 25                    # hard cap on API calls per scan
 
 _SYSTEM = ("You assist with contract negotiation drafts. Rephrase the "
            "given counter-clause template to fit the deal description, "
@@ -69,11 +72,16 @@ def _gemini(api_key, template, deal_hint):
         }],
         "generationConfig": {"maxOutputTokens": 400, "temperature": 0.2},
     }).encode("utf-8")
-    req = Request(GEMINI_ENDPOINT % api_key, data=body,
-                  headers={"Content-Type": "application/json"},
+    # Key goes in a HEADER (never in the URL), redirects are refused,
+    # and the response is size-capped below.
+    req = Request(GEMINI_ENDPOINT, data=body,
+                  headers={"Content-Type": "application/json",
+                           "x-goog-api-key": api_key},
                   method="POST")
-    with urlopen(req, timeout=TIMEOUT) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+    opener = build_opener(_NoRedirect())
+    with opener.open(req, timeout=TIMEOUT) as resp:
+        data = json.loads(resp.read(MAX_TEMPLATE_CHARS * 4)
+                          .decode("utf-8"))
     parts = data["candidates"][0]["content"]["parts"]
     return "".join(p.get("text", "") for p in parts).strip()
 
@@ -92,11 +100,18 @@ def gemini_remedy(finding, api_key, deal_hint=""):
 
 
 def remedies_for(result, use_ai=False, api_key=None, deal_hint=""):
-    """Build remedies for every finding. AI is opt-in per call; every
-    AI failure silently degrades to the offline template."""
-    out = []
+    """Build remedies — ONE per distinct rule (dedupe: a rule hitting
+    ten clauses needs its counter-clause shown once, not ten times; with
+    AI this also bounds API spend to MAX_AI_REMEDIES calls). AI is
+    opt-in per call; every AI failure silently degrades to the offline
+    template."""
+    out, seen, ai_budget = [], set(), MAX_AI_REMEDIES
     for f in result.sorted_findings():
-        if use_ai:
+        if f.rule.id in seen:
+            continue
+        seen.add(f.rule.id)
+        if use_ai and ai_budget > 0:
+            ai_budget -= 1
             try:
                 out.append(gemini_remedy(f, api_key or
                                          os.environ.get("GEMINI_API_KEY"),

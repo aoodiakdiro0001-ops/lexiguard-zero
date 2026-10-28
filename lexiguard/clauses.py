@@ -192,14 +192,23 @@ def normalize_ar_map(s):
     return "".join(out), idx
 
 
-def find_span(pattern, text):
+def find_span(pattern, text, cache=None):
     """Return (raw_start, raw_end, raw_text) of the first match: raw
     text first; else folded text with the span mapped back to raw so
-    snippets keep the original (voweled) wording. None if no match."""
+    snippets keep the original (voweled) wording. None if no match.
+
+    `cache` (optional dict) memoizes the fold of `text` so scanning many
+    patterns over the same clause folds it only once (hostile-input
+    guard: folding is O(len) Python-level work)."""
     m = pattern.search(text)
     if m:
         return m.start(), m.end(), text
-    folded, idx = normalize_ar_map(text)
+    if cache is not None and "fold" in cache:
+        folded, idx = cache["fold"]
+    else:
+        folded, idx = normalize_ar_map(text)
+        if cache is not None:
+            cache["fold"] = (folded, idx)
     m = pattern.search(folded)
     if not m:
         return None
